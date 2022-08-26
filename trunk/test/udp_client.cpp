@@ -579,8 +579,8 @@ int main()
         recv_buf[recv_num] = '\0';
         SrsBrandwidthDectorResponsePacket resp;
         resp.encode(recv_buf, recv_num);
-        
-        printf("client receive %d bytes: %s\n", recv_num, resp.format_print().c_str());
+        res_seq++;
+        printf("client receive %d, %d bytes: %s\n",res_seq, recv_num, resp.format_print().c_str());
         // sleep(1);
     }
     close(sock_fd);
