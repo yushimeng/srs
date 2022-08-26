@@ -145,7 +145,7 @@ private:
 private:
     SrsPithyPrint* pprint;
 public:
-    virtual srs_error_t on_stfd_change(srs_netfd_t fd);
+    virtual void set_stfd(srs_netfd_t fd);
     SrsBrandwidthDectorOverUdp(SrsConfDirective* c);
     virtual ~SrsBrandwidthDectorOverUdp();
 // Interface ISrsUdpHandler

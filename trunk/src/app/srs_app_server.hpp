@@ -128,7 +128,6 @@ private:
 public:
     SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     ~SrsUdpBrandwidthDectorCasterListener();
-    // srs_error_t on_stfd_change(srs_netfd_t fd);
 };
 
 // A UDP listener, for udp stream caster server.

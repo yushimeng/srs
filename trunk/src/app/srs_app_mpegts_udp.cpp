@@ -178,10 +178,12 @@ SrsBrandwidthDectorOverUdp::~SrsBrandwidthDectorOverUdp()
     // srs_freep(queue);
     srs_freep(pprint);
 }
-srs_error_t SrsBrandwidthDectorOverUdp::on_stfd_change(srs_netfd_t fd) 
+
+void SrsBrandwidthDectorOverUdp::set_stfd(srs_netfd_t fd) 
 {
     lfd = fd;
 }
+
 srs_error_t SrsBrandwidthDectorOverUdp::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;

@@ -54,6 +54,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "MPEG-TS over UDP";
         case SrsListenerFlv:
             return "HTTP-FLV";
+        case SrsListenerBrandwidthDectorOverUdp:
+            return "BRANDWIDTH-DECTOR over UDP";
         default:
             return "UNKONWN";
     }
