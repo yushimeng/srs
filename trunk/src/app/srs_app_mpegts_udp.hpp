@@ -12,6 +12,7 @@
 struct sockaddr;
 #include <string>
 #include <map>
+#include <iostream>
 
 class SrsBuffer;
 class SrsTsContext;
@@ -104,13 +105,14 @@ public:
     int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
     uint32_t length; // 24bit 
     uint32_t sequence_number; // 32bit
-    uint32_t timestamp; // 32bit
+    uint64_t timestamp; // 64bit
     // The payload.
     SrsSimpleStream* payload;
 public:
     SrsBrandwidthDectorRequestPacket();
     virtual ~SrsBrandwidthDectorRequestPacket();
     virtual srs_error_t decode(SrsBuffer* stream);
+    virtual std::string format_print();
 };
 
 // refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
@@ -130,6 +132,7 @@ public:
     virtual ~SrsBrandwidthDectorResponsePacket();
     virtual void encode(SrsBrandwidthDectorRequestPacket* pkt);
     virtual std::string to_string();
+    virtual std::string format_print();
 };
 
 // The brandwidth dector over udp stream caster.
@@ -137,7 +140,7 @@ class SrsBrandwidthDectorOverUdp :  public ISrsUdpHandler
 {
 private:
     // SrsTsContext* context;
-    SrsSimpleStream* buffer;
+    // SrsSimpleStream* buffer;
     std::string output;
     SrsBrandwidthDectorRequestPacket pkt;
     srs_netfd_t lfd;
