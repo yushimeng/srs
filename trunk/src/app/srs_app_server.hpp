@@ -55,6 +55,8 @@ enum SrsListenerType
     SrsListenerHttpsApi = 8,
     // HTTPS stream,
     SrsListenerHttpsStream = 9,
+    // UDP brandwidth dector stream.
+    SrsListenerBrandwidthDectorOverUdp = 10,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -116,6 +118,17 @@ public:
     virtual ~SrsUdpStreamListener();
 public:
     virtual srs_error_t listen(std::string i, int p);
+};
+
+// A UDP listener, for udp brandwidth dector caster server.
+class SrsUdpBrandwidthDectorCasterListener : public SrsUdpStreamListener
+{
+private:
+    /* data */
+public:
+    SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    ~SrsUdpBrandwidthDectorCasterListener();
+    // srs_error_t on_stfd_change(srs_netfd_t fd);
 };
 
 // A UDP listener, for udp stream caster server.

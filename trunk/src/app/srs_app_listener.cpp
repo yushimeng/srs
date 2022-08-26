@@ -163,9 +163,10 @@ srs_error_t SrsUdpListener::listen()
     }
 
     set_socket_buffer();
+    srs_trace("handle=%p", handler);
 
     handler->set_stfd(lfd);
-    
+    srs_trace("22handle=%p", handler);
     srs_freep(trd);
     trd = new SrsSTCoroutine("udp", this, _srs_context->get_id());
     if ((err = trd->start()) != srs_success) {
@@ -198,7 +199,7 @@ srs_error_t SrsUdpListener::cycle()
             && buf[19] == 0x63 && buf[20] == 0x6b) {
             continue;
         }
-
+        srs_trace("app server recv buf:len=%d", nread);
         if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             return srs_error_wrap(err, "handle packet %d bytes", nread);
         }

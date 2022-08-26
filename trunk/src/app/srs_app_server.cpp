@@ -190,7 +190,7 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp || type == SrsListenerBrandwidthDectorOverUdp);
     
     ip = i;
     port = p;
@@ -212,6 +212,25 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     return err;
 }
+
+SrsUdpBrandwidthDectorCasterListener::SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, 
+    SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
+{
+    // the caller already ensure the type is ok,
+    // we just assert here for unknown stream caster.
+    srs_assert(type == SrsListenerBrandwidthDectorOverUdp);
+    if (type == SrsListenerBrandwidthDectorOverUdp) {
+        caster = new SrsBrandwidthDectorOverUdp(c);
+    }
+}
+
+SrsUdpBrandwidthDectorCasterListener::~SrsUdpBrandwidthDectorCasterListener()
+{
+    srs_freep(caster);
+}
+// srs_error_t SrsUdpBrandwidthDectorCasterListener::on_stfd_change(srs_netfd_t fd) {
+//     lfd = fd;
+// }
 
 SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
@@ -1310,6 +1329,9 @@ srs_error_t SrsServer::listen_stream_caster()
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (srs_stream_caster_is_udp(caster)) {
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
+        } else if (srs_stream_caster_is_brandwidth_dector(caster)) {
+            listener = new SrsUdpBrandwidthDectorCasterListener(this, 
+                SrsListenerBrandwidthDectorOverUdp, stream_caster);
         } else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else {

@@ -97,5 +97,64 @@ private:
     virtual void close();
 };
 
+// refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
+class SrsBrandwidthDectorRequestPacket {
+public:
+    int8_t version; // 2bit fixed 00
+    int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
+    uint32_t length; // 24bit 
+    uint32_t sequence_number; // 32bit
+    uint32_t timestamp; // 32bit
+    // The payload.
+    SrsSimpleStream* payload;
+public:
+    SrsBrandwidthDectorRequestPacket();
+    virtual ~SrsBrandwidthDectorRequestPacket();
+    virtual srs_error_t decode(SrsBuffer* stream);
+};
+
+// refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
+class SrsBrandwidthDectorResponsePacket {
+private:
+    int8_t version; // 2bit fixed 00
+    int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
+    uint32_t length; // 24bit 
+    uint32_t sequence_number; // 32bit
+    uint32_t send_data_length; // 32bit
+    uint64_t send_timestamp; // 64bit
+    uint64_t recv_timestamp; // 64bit
+    // The payload.
+    // SrsSimpleStream* payload;
+public:
+    SrsBrandwidthDectorResponsePacket();
+    virtual ~SrsBrandwidthDectorResponsePacket();
+    virtual void encode(SrsBrandwidthDectorRequestPacket* pkt);
+    virtual std::string to_string();
+};
+
+// The brandwidth dector over udp stream caster.
+class SrsBrandwidthDectorOverUdp :  public ISrsUdpHandler
+{
+private:
+    // SrsTsContext* context;
+    SrsSimpleStream* buffer;
+    std::string output;
+    SrsBrandwidthDectorRequestPacket pkt;
+    srs_netfd_t lfd;
+
+private:
+    SrsPithyPrint* pprint;
+public:
+    virtual srs_error_t on_stfd_change(srs_netfd_t fd);
+    SrsBrandwidthDectorOverUdp(SrsConfDirective* c);
+    virtual ~SrsBrandwidthDectorOverUdp();
+// Interface ISrsUdpHandler
+public:
+    virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+// private:
+    // virtual srs_error_t on_udp_bytes(std::string host, int port, char* buf, int nb_buf);
+
+};
+
 #endif
 

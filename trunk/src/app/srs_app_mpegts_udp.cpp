@@ -33,6 +33,8 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_utility.hpp>
+#define SRS_BRANDWIDTH_DECTOR_PT_REQ 1
+#define SRS_BRANDWIDTH_DECTOR_PT_RES 2
 
 SrsMpegtsQueue::SrsMpegtsQueue()
 {
@@ -158,6 +160,134 @@ srs_error_t SrsMpegtsOverUdp::on_udp_packet(const sockaddr* from, const int from
         return srs_error_wrap(err, "process udp");
     }
     return err;
+}
+
+SrsBrandwidthDectorOverUdp::SrsBrandwidthDectorOverUdp(SrsConfDirective* c)
+{
+    pprint = SrsPithyPrint::create_caster();
+}
+
+SrsBrandwidthDectorOverUdp::~SrsBrandwidthDectorOverUdp()
+{
+    // close();
+    
+    // srs_freep(buffer);
+    // srs_freep(context);
+    // srs_freep(avc);
+    // srs_freep(aac);
+    // srs_freep(queue);
+    srs_freep(pprint);
+}
+srs_error_t SrsBrandwidthDectorOverUdp::on_stfd_change(srs_netfd_t fd) 
+{
+    lfd = fd;
+}
+srs_error_t SrsBrandwidthDectorOverUdp::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+    char address_string[64];
+    char port_string[16];
+
+    srs_trace("recv buf:%s", buf);
+
+    if(getnameinfo(from, fromlen, 
+                   (char*)&address_string, sizeof(address_string),
+                   (char*)&port_string, sizeof(port_string),
+                   NI_NUMERICHOST|NI_NUMERICSERV)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+    }
+    std::string peer_ip = std::string(address_string);
+    int peer_port = atoi(port_string);
+    if (buffer->length() < SRS_BRANDWIDTH_DECTOR_MIN_PACKET_SIZE) {
+        srs_warn("udp: wait %s:%d packet %d/%d bytes", peer_ip.c_str(), peer_port, nb_buf, buffer->length());
+        return err;
+    }
+
+    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
+    SrsAutoFree(SrsBuffer, stream);
+    if ((err = pkt.decode(stream)) != srs_success) {
+        return srs_error_wrap(err, "pkt decode err");
+    }
+    
+    SrsBrandwidthDectorResponsePacket response_pkt;
+    response_pkt.encode(&pkt);
+    std::string str = response_pkt.to_string();
+
+    int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), from, fromlen, SRS_UTIME_NO_TIMEOUT);
+    if (ret <= 0) {
+        srs_trace("brandwidth dector: send_message falid (%d)", ret);
+    }
+    return err;
+}
+
+SrsBrandwidthDectorRequestPacket::SrsBrandwidthDectorRequestPacket() {
+
+}
+
+SrsBrandwidthDectorRequestPacket::~SrsBrandwidthDectorRequestPacket() {
+
+}
+
+srs_error_t SrsBrandwidthDectorRequestPacket::decode(SrsBuffer* stream) {
+    srs_error_t err = srs_success;
+    
+    // 12bytes header
+    if (!stream->require(12)) {
+        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "requires 12 only %d bytes", stream->left());
+    }
+    
+    int8_t vv = stream->read_1bytes();
+    version = (vv >> 6) & 0x03;
+    payload_type = vv & 0x3f;
+    if (version != 0 || payload_type != SRS_BRANDWIDTH_DECTOR_PT_REQ) {
+        return srs_error_new(ERROR_BRANDWIDTH_DECTOR_RTP_INVALID, 
+            "rtp v:%d pt:%d invalid", version, payload_type);
+    }
+
+    length = stream->read_3bytes();
+
+    sequence_number = stream->read_4bytes();
+
+    timestamp = stream->read_8bytes();
+
+    if (stream->left() < length) {
+        return srs_error_new(ERROR_BRANDWIDTH_DECTOR_RTP_INVALID, 
+            "requires payload length %d only %d bytes", length, stream->left());
+    }
+    
+    return err;
+}
+
+SrsBrandwidthDectorResponsePacket::SrsBrandwidthDectorResponsePacket() {
+    
+}
+
+SrsBrandwidthDectorResponsePacket::~SrsBrandwidthDectorResponsePacket() {
+
+}
+
+void SrsBrandwidthDectorResponsePacket::encode(SrsBrandwidthDectorRequestPacket* pkt) {
+    version = 0;
+    payload_type = SRS_BRANDWIDTH_DECTOR_PT_RES;
+    length = 24; // fixed.
+    sequence_number = pkt->sequence_number;
+    send_data_length = pkt->length;
+    send_timestamp = pkt->timestamp;
+    recv_timestamp = pkt->timestamp;
+}
+
+std::string SrsBrandwidthDectorResponsePacket::to_string() {
+    char buf[1500];
+    // char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+
+    stream.write_1bytes(0x02); // v pt
+    stream.write_3bytes(length); // length
+    stream.write_4bytes(sequence_number); // sequence_number
+    stream.write_4bytes(send_data_length); // send_data_length
+    stream.write_8bytes(send_timestamp); // send_timestamp
+    stream.write_8bytes(recv_timestamp); // recv_timestamp
+    return std::string(stream.data(), stream.size());
 }
 
 srs_error_t SrsMpegtsOverUdp::on_udp_bytes(string host, int port, char* buf, int nb_buf)

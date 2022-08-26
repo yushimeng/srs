@@ -250,6 +250,11 @@ bool srs_stream_caster_is_udp(string caster)
     return caster == "mpegts_over_udp";
 }
 
+bool srs_stream_caster_is_brandwidth_dector(string caster)
+{
+    return caster == "brandwidth_dector_over_udp";
+}
+
 bool srs_stream_caster_is_flv(string caster)
 {
     return caster == "flv";
