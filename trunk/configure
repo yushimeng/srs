@@ -87,7 +87,7 @@ GDBDebug=" -g -O0"
 WarnLevel=" -Wall -Wno-deprecated-declarations"
 # the compile standard.
 CppStd="-ansi"
-if [[ $SRS_CXX11 == YES ]]; then
+if [[ $SRS_CXX11 == YES || $SRS_BANDWIDTH_DECTOR == YES ]]; then
     CppStd="-std=c++11"
 fi
 if [[ $SRS_CXX14 == YES ]]; then
@@ -276,6 +276,10 @@ MODULE_FILES=("srs_app_server" "srs_app_conn" "srs_app_rtmp_conn" "srs_app_sourc
         "srs_app_caster_flv" "srs_app_latest_version" "srs_app_uuid" "srs_app_process" "srs_app_ng_exec"
         "srs_app_hourglass" "srs_app_dash" "srs_app_fragment" "srs_app_dvr"
         "srs_app_coworkers" "srs_app_hybrid" "srs_app_threads")
+if [[ $SRS_BANDWIDTH_DECTOR == YES ]]; then
+    MODULE_FILES+=("srs_app_bandwidth_dector")
+fi
+
 if [[ $SRS_RTC == YES ]]; then
     MODULE_FILES+=("srs_app_rtc_conn" "srs_app_rtc_dtls" "srs_app_rtc_sdp"
         "srs_app_rtc_queue" "srs_app_rtc_server" "srs_app_rtc_source" "srs_app_rtc_api")
@@ -680,6 +684,11 @@ if [ $SRS_SRT = YES ]; then
     echo -e "${YELLOW}Experiment: SRT is enabled. https://github.com/ossrs/srs/issues/1147${BLACK}"
 else
     echo -e "${GREEN}Warning: SRT is disabled.${BLACK}"
+fi
+if [ $SRS_BANDWIDTH_DECTOR = YES ]; then
+    echo -e "${YELLOW}Experiment: SRS_BANDWIDTH_DECTOR is enabled. https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3"
+else
+    echo -e "${GREEN}Warning: SRS_BANDWIDTH_DECTOR is disabled.${BLACK}"
 fi
 if [ $SRS_RTC = YES ]; then
     echo -e "${YELLOW}Experiment: RTC is enabled. https://github.com/ossrs/srs/issues/307${BLACK}"

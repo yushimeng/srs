@@ -120,6 +120,7 @@ public:
     virtual srs_error_t listen(std::string i, int p);
 };
 
+#ifdef SRS_BANDWIDTH_DECTOR
 // A UDP listener, for udp brandwidth dector caster server.
 class SrsUdpBrandwidthDectorCasterListener : public SrsUdpStreamListener
 {
@@ -129,6 +130,7 @@ public:
     SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
     ~SrsUdpBrandwidthDectorCasterListener();
 };
+#endif
 
 // A UDP listener, for udp stream caster server.
 class SrsUdpCasterListener : public SrsUdpStreamListener

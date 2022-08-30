@@ -37,6 +37,11 @@ using namespace std;
 #include <srs_service_log.hpp>
 #include <srs_app_latest_version.hpp>
 
+#ifdef SRS_BANDWIDTH_DECTOR
+#include <srs_app_bandwidth_dector.hpp>
+
+SrsBandWidthDectorManger *_srs_bd_dector = NULL;
+#endif
 std::string srs_listener_type2string(SrsListenerType type)
 {
     switch (type) {
@@ -214,7 +219,7 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     return err;
 }
-
+#ifdef SRS_BANDWIDTH_DECTOR
 SrsUdpBrandwidthDectorCasterListener::SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, 
     SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
@@ -230,9 +235,7 @@ SrsUdpBrandwidthDectorCasterListener::~SrsUdpBrandwidthDectorCasterListener()
 {
     srs_freep(caster);
 }
-// srs_error_t SrsUdpBrandwidthDectorCasterListener::on_stfd_change(srs_netfd_t fd) {
-//     lfd = fd;
-// }
+#endif
 
 SrsUdpCasterListener::SrsUdpCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
@@ -1331,10 +1334,16 @@ srs_error_t SrsServer::listen_stream_caster()
         std::string caster = _srs_config->get_stream_caster_engine(stream_caster);
         if (srs_stream_caster_is_udp(caster)) {
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
-        } else if (srs_stream_caster_is_brandwidth_dector(caster)) {
+        }
+#ifdef SRS_BANDWIDTH_DECTOR 
+        else if (srs_stream_caster_is_brandwidth_dector(caster)) {
             listener = new SrsUdpBrandwidthDectorCasterListener(this, 
-                SrsListenerBrandwidthDectorOverUdp, stream_caster);
-        } else if (srs_stream_caster_is_flv(caster)) {
+                                                                SrsListenerBrandwidthDectorOverUdp, 
+                                                                stream_caster);
+            _srs_bd_dector = new SrsBandWidthDectorManger(stream_caster);
+        }
+#endif 
+        else if (srs_stream_caster_is_flv(caster)) {
             listener = new SrsHttpFlvListener(this, SrsListenerFlv, stream_caster);
         } else {
             return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "invalid caster %s", caster.c_str());

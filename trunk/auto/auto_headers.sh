@@ -56,6 +56,12 @@ else
     srs_undefine_macro "SRS_SRT" $SRS_AUTO_HEADERS_H
 fi
 
+if [ $SRS_BANDWIDTH_DECTOR = YES ]; then
+    srs_define_macro "SRS_BANDWIDTH_DECTOR" $SRS_AUTO_HEADERS_H
+else
+    srs_undefine_macro "SRS_BANDWIDTH_DECTOR" $SRS_AUTO_HEADERS_H
+fi
+
 if [ $SRS_CXX11 = YES ]; then
     srs_define_macro "SRS_CXX11" $SRS_AUTO_HEADERS_H
 else

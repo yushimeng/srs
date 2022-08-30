@@ -5,6 +5,7 @@ help=no
 # feature options
 SRS_HDS=NO
 SRS_SRT=NO
+SRS_BANDWIDTH_DECTOR=NO
 SRS_RTC=YES
 SRS_CXX11=NO
 SRS_CXX14=NO
@@ -123,6 +124,7 @@ Features:
   --utest=on|off            Whether build the utest. Default: $(value2switch $SRS_UTEST)
   --srt=on|off              Whether build the SRT. Default: $(value2switch $SRS_SRT)
   --rtc=on|off              Whether build the WebRTC. Default: $(value2switch $SRS_RTC)
+  --bandwidth_dector=on|off Whether build the BandWidth Dector. Default: $(value2switch $SRS_BANDWIDTH_DECTOR)
   --cxx11=on|off            Whether enable the C++11. Default: $(value2switch $SRS_CXX11)
   --cxx14=on|off            Whether enable the C++14. Default: $(value2switch $SRS_CXX14)
   --ffmpeg-fit=on|off       Whether enable the FFmpeg fit(source code). Default: $(value2switch $SRS_FFMPEG_FIT)
@@ -281,6 +283,10 @@ function parse_user_option() {
         --without-srt)                  SRS_SRT=NO                  ;;
         --srt)                          SRS_SRT=$(switch2value $value) ;;
 
+        --with-bandwidth-dector)        SRS_BANDWIDTH_DECTOR=YES                 ;;
+        --without-bandwidth-dector)     SRS_BANDWIDTH_DECTOR=NO                  ;;
+        --bandwidth-dector)             SRS_BANDWIDTH_DECTOR=$(switch2value $value) ;;
+
         --with-rtc)                     SRS_RTC=YES                 ;;
         --without-rtc)                  SRS_RTC=NO                  ;;
         --rtc)                          SRS_RTC=$(switch2value $value) ;;
@@ -431,7 +437,7 @@ function apply_auto_options() {
 
     # The SRT code in SRS requires c++11, although we build libsrt without c++11.
     # TODO: FIXME: Remove c++11 code in SRT of SRS.
-    if [[ $SRS_SRT == YES ]]; then
+    if [[ $SRS_SRT == YES || $SRS_BANDWIDTH_DECTOR == YES ]]; then
         SRS_CXX11=YES
     fi
 
@@ -514,6 +520,7 @@ function regenerate_options() {
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --utest=$(value2switch $SRS_UTEST)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cherrypy=$(value2switch $SRS_CHERRYPY)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_SRT)"
+    SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --srt=$(value2switch $SRS_BANDWIDTH_DECTOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --rtc=$(value2switch $SRS_RTC)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --simulator=$(value2switch $SRS_SIMULATOR)"
     SRS_AUTO_CONFIGURE="${SRS_AUTO_CONFIGURE} --cxx11=$(value2switch $SRS_CXX11)"
