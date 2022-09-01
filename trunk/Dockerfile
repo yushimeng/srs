@@ -11,12 +11,12 @@ RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM, JOBS: 
 ENV DEBIAN_FRONTEND noninteractive
 
 # Install depends tools.
-RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git
+RUN apt-get update && apt-get install -y gcc make g++ patch unzip perl git less
 
 # Build and install SRS.
-COPY . /srs
+COPY . /srs/trunk
 WORKDIR /srs/trunk
-RUN ./configure --srt=on --jobs=${JOBS} && make -j${JOBS} && make install
+RUN ./configure --bandwidth-dector --jobs=${JOBS} && make -j${JOBS} && make install
 
 # All config files for SRS.
 RUN cp -R conf /usr/local/srs/conf && \
@@ -37,7 +37,7 @@ ARG TARGETPLATFORM
 RUN echo "BUILDPLATFORM: $BUILDPLATFORM, TARGETPLATFORM: $TARGETPLATFORM"
 
 # Expose ports for streaming @see https://github.com/ossrs/srs#ports
-EXPOSE 1935 1985 8080 8000/udp 10080/udp
+EXPOSE 1935 1985 8080 8000/udp 10080/udp 8688/udp
 
 # FFMPEG 4.1
 COPY --from=build /usr/local/bin/ffmpeg /usr/local/srs/objs/ffmpeg/bin/ffmpeg
@@ -46,4 +46,4 @@ COPY --from=build /usr/local/srs /usr/local/srs
 
 # Default workdir and command.
 WORKDIR /usr/local/srs
-CMD ["./objs/srs", "-c", "conf/docker.conf"]
+CMD ["./objs/srs", "-c", "conf/srs.conf"]
