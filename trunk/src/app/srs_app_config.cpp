@@ -250,7 +250,7 @@ bool srs_stream_caster_is_udp(string caster)
     return caster == "mpegts_over_udp";
 }
 
-bool srs_stream_caster_is_brandwidth_dector(string caster)
+bool srs_stream_caster_is_bandwidth_dector(string caster)
 {
     return caster == "bandwidth_dector_over_udp";
 }
@@ -2655,7 +2655,7 @@ srs_error_t SrsConfig::check_normal_config()
         for (int i = 0; stream_caster && i < (int)stream_caster->directives.size(); i++) {
             SrsConfDirective* conf = stream_caster->at(i);
             string n = conf->name;
-            if (n != "enabled" && n != "caster" && n != "output"
+            if (n != "enabled" && n != "caster" && n != "output" && n != "timeout"
                 && n != "listen" && n != "tcp_enable" && n != "rtp_port_min" && n != "rtp_port_max"
                 && n != "rtp_idle_timeout" && n != "sip"
                 && n != "audio_enable" && n != "wait_keyframe" && n != "jitterbuffer_enable"
@@ -3465,6 +3465,22 @@ int SrsConfig::get_stream_caster_rtp_port_min(SrsConfDirective* conf)
     }
     
     return ::atoi(conf->arg0().c_str());
+}
+
+int SrsConfig::get_stream_caster_timeout(SrsConfDirective* conf)
+{
+    static srs_utime_t DEFAULT = 30 * SRS_UTIME_SECONDS;
+
+    if (!conf) {
+        return DEFAULT;
+    }
+
+    conf = conf->get("timeout");
+    if (!conf || conf->arg0().empty()) {
+        return DEFAULT;
+    }
+
+    return (srs_utime_t)(::atoi(conf->arg0().c_str()) * SRS_UTIME_SECONDS);
 }
 
 int SrsConfig::get_stream_caster_rtp_port_max(SrsConfDirective* conf)

@@ -33,8 +33,8 @@ using namespace std;
 #include <srs_app_pithy_print.hpp>
 #include <srs_app_rtmp_conn.hpp>
 #include <srs_protocol_utility.hpp>
-#define SRS_BRANDWIDTH_DECTOR_PT_REQ 1
-#define SRS_BRANDWIDTH_DECTOR_PT_RES 2
+// #define SRS_BANDWIDTH_DECTOR_PT_REQ 1
+// #define SRS_BANDWIDTH_DECTOR_PT_RES 2
 
 SrsMpegtsQueue::SrsMpegtsQueue()
 {

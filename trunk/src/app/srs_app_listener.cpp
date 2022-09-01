@@ -199,7 +199,7 @@ srs_error_t SrsUdpListener::cycle()
             && buf[19] == 0x63 && buf[20] == 0x6b) {
             continue;
         }
-        srs_trace("app server recv buf:len=%d", nread);
+        
         if ((err = handler->on_udp_packet((const sockaddr*)&from, nb_from, buf, nread)) != srs_success) {
             // return srs_error_wrap(err, "handle packet %d bytes", nread);
             srs_error("handle udp packet err,%s", srs_error_desc(err).c_str());

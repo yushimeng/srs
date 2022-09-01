@@ -135,7 +135,7 @@ public:
         // we must convert the tv_sec/tv_usec to int64_t.
         int64_t now_ms = ((int64_t)now.tv_sec) * 1000 + (int64_t)(now.tv_usec + 500)/1000;
         timestamp = now_ms;
-        printf("ts=%ld\n", timestamp);
+        // printf("ts=%ld\n", timestamp);
         // payload = "12345678";
         memcpy(payload, "12345678", 8);
         payload[8] = '\0';
@@ -526,39 +526,20 @@ public:
         return ss.str();
     }
 };
-int main()
-{
-    /* socket文件描述符 */
-    int sock_fd;
 
-    /* 建立udp socket */
-    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
-    if(sock_fd < 0)
-    {
-    perror("socket");
-    exit(1);
-    }
-
-    /* 设置address */
-    struct sockaddr_in addr_serv;
-    int len;
-    memset(&addr_serv, 0, sizeof(addr_serv));
-    addr_serv.sin_family = AF_INET;
-    addr_serv.sin_addr.s_addr = inet_addr(DSET_IP_ADDRESS);
-    addr_serv.sin_port = htons(DEST_PORT);
-    len = sizeof(addr_serv);
-
-
-    int send_num;
-    int recv_num;
-    char send_buf[20] = "hey, who are you?";
-    char recv_buf[1500];
-    int seq = 1;
-    int res_seq= 0;
-    while (seq < 100000) {
+/* socket文件描述符 */
+int sock_fd;
+struct sockaddr_in addr_serv;
+int len;
+void do_send() {
+    int seq = 0;
+    int send_num = 0;
+    for (int i = 0; i < 1; i++)
+    seq = 0;
+    while (seq < 10000) {
         SrsBrandwidthDectorRequestPacket pkt(seq++);
         std::string str = pkt.encode();
-        printf("client send: %s, %ld\n", str.c_str(), str.length());
+        // printf("client send: %s, %ld\n", str.c_str(), str.length());
         
         send_num = sendto(sock_fd, str.c_str(), str.length(), 0, (struct sockaddr *)&addr_serv, len);
 
@@ -567,22 +548,72 @@ int main()
             perror("sendto error:");
             exit(1);
         }
-
-        recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&addr_serv, (socklen_t *)&len);
-
-        if(recv_num < 0)
-        {
-            perror("recvfrom error:");
-            exit(1);
-        }
-
-        recv_buf[recv_num] = '\0';
-        SrsBrandwidthDectorResponsePacket resp;
-        resp.encode(recv_buf, recv_num);
-        res_seq++;
-        printf("client receive %d, %d bytes: %s\n",res_seq, recv_num, resp.format_print().c_str());
-        // sleep(1);
     }
+}
+
+int main()
+{
+    /* 建立udp socket */
+    sock_fd = socket(AF_INET, SOCK_DGRAM, 0);
+    if(sock_fd < 0)
+    {
+        perror("socket");
+        exit(1);
+    }
+
+    /* 设置address */
+    
+    
+    memset(&addr_serv, 0, sizeof(addr_serv));
+    addr_serv.sin_family = AF_INET;
+    addr_serv.sin_addr.s_addr = inet_addr(DSET_IP_ADDRESS);
+    addr_serv.sin_port = htons(DEST_PORT);
+    len = sizeof(addr_serv);
+
+
+    // int send_num;
+    // int recv_num;
+    // char send_buf[20] = "hey, who are you?";
+    // char recv_buf[1500];
+    // int seq = 1;
+    // int res_seq= 0;
+    // while (seq < 100000) {
+    //     SrsBrandwidthDectorRequestPacket pkt(seq++);
+    //     std::string str = pkt.encode();
+    //     printf("client send: %s, %ld\n", str.c_str(), str.length());
+        
+    //     send_num = sendto(sock_fd, str.c_str(), str.length(), 0, (struct sockaddr *)&addr_serv, len);
+
+    //     if(send_num < 0)
+    //     {
+    //         perror("sendto error:");
+    //         exit(1);
+    //     }
+
+    //     // recv_num = recvfrom(sock_fd, recv_buf, sizeof(recv_buf), 0, (struct sockaddr *)&addr_serv, (socklen_t *)&len);
+
+    //     // if(recv_num < 0)
+    //     // {
+    //     //     perror("recvfrom error:");
+    //     //     exit(1);
+    //     // }
+
+    //     // recv_buf[recv_num] = '\0';
+    //     // SrsBrandwidthDectorResponsePacket resp;
+    //     // resp.encode(recv_buf, recv_num);
+    //     // res_seq++;
+    //     // printf("client receive %d, %d bytes: %s\n",res_seq, recv_num, resp.format_print().c_str());
+    //     // sleep(1);
+    // }
+    // std::thread()
+    timeval start_tv; 
+    gettimeofday(&start_tv,NULL);
+    do_send();
+    timeval end_tv; 
+    gettimeofday(&end_tv,NULL);
+    unsigned long long duration = (end_tv.tv_sec * 1000000 + end_tv.tv_usec) 
+                                - (start_tv.tv_sec*1000000 + start_tv.tv_usec);
+    printf("spend time:%llu\n", duration);
     close(sock_fd);
 
     return 0;

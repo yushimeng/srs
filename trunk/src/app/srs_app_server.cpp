@@ -59,8 +59,8 @@ std::string srs_listener_type2string(SrsListenerType type)
             return "MPEG-TS over UDP";
         case SrsListenerFlv:
             return "HTTP-FLV";
-        case SrsListenerBrandwidthDectorOverUdp:
-            return "BRANDWIDTH-DECTOR over UDP";
+        case SrsListenerBandwidthDectorOverUdp:
+            return "BANDWIDTH-DECTOR over UDP";
         default:
             return "UNKONWN";
     }
@@ -197,7 +197,7 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerMpegTsOverUdp || type == SrsListenerBrandwidthDectorOverUdp);
+    srs_assert(type == SrsListenerMpegTsOverUdp || type == SrsListenerBandwidthDectorOverUdp);
     
     ip = i;
     port = p;
@@ -220,18 +220,18 @@ srs_error_t SrsUdpStreamListener::listen(string i, int p)
     return err;
 }
 #ifdef SRS_BANDWIDTH_DECTOR
-SrsUdpBrandwidthDectorCasterListener::SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, 
+SrsUdpBandwidthDectorCasterListener::SrsUdpBandwidthDectorCasterListener(SrsServer* svr, 
     SrsListenerType t, SrsConfDirective* c) : SrsUdpStreamListener(svr, t, NULL)
 {
     // the caller already ensure the type is ok,
     // we just assert here for unknown stream caster.
-    srs_assert(type == SrsListenerBrandwidthDectorOverUdp);
-    if (type == SrsListenerBrandwidthDectorOverUdp) {
-        caster = new SrsBrandwidthDectorOverUdp(c);
+    srs_assert(type == SrsListenerBandwidthDectorOverUdp);
+    if (type == SrsListenerBandwidthDectorOverUdp) {
+        caster = new SrsBandwidthDectorOverUdp(c);
     }
 }
 
-SrsUdpBrandwidthDectorCasterListener::~SrsUdpBrandwidthDectorCasterListener()
+SrsUdpBandwidthDectorCasterListener::~SrsUdpBandwidthDectorCasterListener()
 {
     srs_freep(caster);
 }
@@ -1336,11 +1336,17 @@ srs_error_t SrsServer::listen_stream_caster()
             listener = new SrsUdpCasterListener(this, SrsListenerMpegTsOverUdp, stream_caster);
         }
 #ifdef SRS_BANDWIDTH_DECTOR 
-        else if (srs_stream_caster_is_brandwidth_dector(caster)) {
-            listener = new SrsUdpBrandwidthDectorCasterListener(this, 
-                                                                SrsListenerBrandwidthDectorOverUdp, 
+        else if (srs_stream_caster_is_bandwidth_dector(caster)) {
+            listener = new SrsUdpBandwidthDectorCasterListener(this, 
+                                                                SrsListenerBandwidthDectorOverUdp, 
                                                                 stream_caster);
             _srs_bd_dector = new SrsBandWidthDectorManger(stream_caster);
+            if (_srs_bd_dector) {
+                if ((err = _srs_bd_dector->initialize()) != srs_success) {
+                    srs_error("_srs_bd_dector init failed!");
+                    return srs_error_new(ERROR_STREAM_CASTER_ENGINE, "_srs_bd_dector init failed!");
+                } 
+            }
         }
 #endif 
         else if (srs_stream_caster_is_flv(caster)) {

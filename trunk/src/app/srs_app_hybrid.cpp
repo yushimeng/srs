@@ -11,6 +11,7 @@
 #include <srs_kernel_error.hpp>
 #include <srs_service_st.hpp>
 #include <srs_app_utility.hpp>
+#include <srs_app_bandwidth_dector.hpp>
 
 using namespace std;
 
@@ -21,6 +22,7 @@ extern SrsPps* _srs_pps_timer;
 extern SrsPps* _srs_pps_pub;
 extern SrsPps* _srs_pps_conn;
 extern SrsPps* _srs_pps_dispose;
+extern SrsBandWidthDectorManger *_srs_bd_dector;
 
 #if defined(SRS_DEBUG) && defined(SRS_DEBUG_STATS)
 extern unsigned long long _st_stat_recvfrom;
@@ -447,6 +449,11 @@ srs_error_t SrsHybridServer::on_timer(srs_utime_t interval)
         epoll_desc.c_str(), sched_desc.c_str(), clock_desc.c_str(),
         thread_desc.c_str(), free_desc.c_str(), objs_desc.c_str()
     );
+
+#ifdef SRS_BANDWIDTH_DECTOR
+    _srs_bd_dector->report_sender_cnt();
+    _srs_bd_dector->clear_statistics();
+#endif
 
     return err;
 }

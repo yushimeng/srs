@@ -31,7 +31,7 @@ class SrsTsContext;
 
 // Transport Stream packets are 188 bytes in length.
 #define SRS_TS_PACKET_SIZE          188
-#define SRS_BRANDWIDTH_DECTOR_MIN_PACKET_SIZE          12
+#define SRS_BANDWIDTH_DECTOR_MIN_PACKET_SIZE          12
 
 // The aggregate pure audio for hls, in ts tbn(ms * 90).
 #define SRS_CONSTS_HLS_PURE_AUDIO_AGGREGATE 720 * 90

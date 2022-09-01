@@ -56,7 +56,7 @@ enum SrsListenerType
     // HTTPS stream,
     SrsListenerHttpsStream = 9,
     // UDP brandwidth dector stream.
-    SrsListenerBrandwidthDectorOverUdp = 10,
+    SrsListenerBandwidthDectorOverUdp = 10,
 };
 
 // A common tcp listener, for RTMP/HTTP server.
@@ -122,13 +122,13 @@ public:
 
 #ifdef SRS_BANDWIDTH_DECTOR
 // A UDP listener, for udp brandwidth dector caster server.
-class SrsUdpBrandwidthDectorCasterListener : public SrsUdpStreamListener
+class SrsUdpBandwidthDectorCasterListener : public SrsUdpStreamListener
 {
 private:
     /* data */
 public:
-    SrsUdpBrandwidthDectorCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
-    ~SrsUdpBrandwidthDectorCasterListener();
+    SrsUdpBandwidthDectorCasterListener(SrsServer* svr, SrsListenerType t, SrsConfDirective* c);
+    ~SrsUdpBandwidthDectorCasterListener();
 };
 #endif
 

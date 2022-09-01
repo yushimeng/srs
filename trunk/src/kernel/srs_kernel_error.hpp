@@ -351,7 +351,7 @@
 #define ERROR_RTC_NO_TRACK                  5030
 #define ERROR_RTC_RTCP_EMPTY_RR             5031
 
-#define ERROR_BRANDWIDTH_DECTOR_RTP_INVALID 6000
+#define ERROR_BANDWIDTH_DECTOR_RTP_INVALID 6000
 
 ///////////////////////////////////////////////////////
 // HTTP API error.
