@@ -278,7 +278,7 @@ srs_error_t SrsBandwidthDectorOverUdp::process_bandwidth_dector_request(const so
     
     SrsBandwidthDectorResponsePacket* response_pkt = new SrsBandwidthDectorResponsePacket();
     response_pkt->encode(&pkt);
-#if 0
+#if 1
     std::string str = response_pkt->to_string();
     _srs_bd_dector->syscall_plus();
     int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), from, fromlen, SRS_UTIME_NO_TIMEOUT);
@@ -329,7 +329,7 @@ srs_error_t SrsBandwidthDectorOverUdp::proces_time_sync_request(const sockaddr* 
 
     SrsTimeSyncResponsePacket* response_pkt = new SrsTimeSyncResponsePacket();
     response_pkt->encode(&pkt);
-#if 0
+#if 1
     std::string str = response_pkt->to_string();
     _srs_bd_dector->syscall_plus();
     int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), from, fromlen, SRS_UTIME_NO_TIMEOUT);
