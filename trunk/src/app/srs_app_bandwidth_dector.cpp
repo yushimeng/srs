@@ -38,9 +38,17 @@ using namespace std;
 
 #define SRS_BANDWIDTH_DECTOR_PT_REQ 1
 #define SRS_BANDWIDTH_DECTOR_PT_RES 2
+#define SRS_TIMESYNC_PT_REQ 3
+#define SRS_TIMESYNC_PT_RES 4
 #ifdef SRS_BANDWIDTH_DECTOR
 
-SrsBandwidthDectorResponsePacket::~SrsBandwidthDectorResponsePacket() {
+static uint64_t get_timestamp_in_ms() 
+{
+    return (srs_get_system_time() + 500 ) / 1000;
+}
+
+SrsBandwidthDectorResponsePacket::~SrsBandwidthDectorResponsePacket() 
+{
 
 }
 
@@ -53,7 +61,8 @@ SrsGb28181Config::~SrsGb28181Config()
 {
 }
 
-std::string SrsBandwidthDectorResponsePacket::format_print() {
+std::string SrsBandwidthDectorResponsePacket::format_print() 
+{
     stringstream ss;
     ss << "{"
         << "v=" << std::to_string(version) << "," 
@@ -67,14 +76,85 @@ std::string SrsBandwidthDectorResponsePacket::format_print() {
     return ss.str();
 }
 
-void SrsBandwidthDectorResponsePacket::encode(SrsBandwidthDectorRequestPacket* pkt) {
+std::string SrsTimeSyncRequestPacket::to_string() 
+{
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+
+    stream.write_1bytes((version << 6) | payload_type); // v pt
+    stream.write_3bytes(length); // length
+    stream.write_8bytes(get_timestamp_in_ms()); // client send_timestamp
+    return std::string(stream.data(), stream.pos());
+}
+
+srs_error_t SrsTimeSyncRequestPacket::decode(SrsBuffer* stream)
+{
+    srs_error_t err = srs_success;
+    
+    // at least 12bytes header
+    if (!stream->require(12)) {
+        return srs_error_new(ERROR_RTP_HEADER_CORRUPT, "requires 16 only %d bytes", stream->left());
+    }
+    
+    int8_t vv = stream->read_1bytes();
+    version = (vv >> 6) & 0x03;
+    payload_type = vv & 0x3f;
+    if (version != 0 || payload_type != SRS_TIMESYNC_PT_REQ) {
+        return srs_error_new(ERROR_BANDWIDTH_DECTOR_RTP_INVALID, 
+            "rtp v:%d pt:%d invalid", version, payload_type);
+    }
+
+    length = stream->read_3bytes();
+    if ((uint32_t)stream->left() < length) {
+        return srs_error_new(ERROR_BANDWIDTH_DECTOR_RTP_INVALID, 
+            "requires payload length %d only %d bytes", length, stream->left());
+    }
+
+    // sequence_number = stream->read_4bytes();
+
+    client_send_timestamp = stream->read_8bytes();
+    
+    return err;
+}
+
+SrsTimeSyncResponsePacket::SrsTimeSyncResponsePacket() 
+{
+    set_pkt_type(SRS_TIMESYNC_PT_RES);
+}
+
+void SrsTimeSyncResponsePacket::encode(SrsTimeSyncRequestPacket* pkt) 
+{
+    version = 0;
+    payload_type = 4;
+    length = 24;
+    client_send_timestamp = pkt->get_client_send_timestamp();
+    server_recv_timestamp = get_timestamp_in_ms();
+    server_send_timestamp = server_recv_timestamp;
+}
+
+std::string SrsTimeSyncResponsePacket::to_string() 
+{
+    char buf[kRtpPacketSize];
+    SrsBuffer stream(buf, sizeof(buf));
+
+    server_send_timestamp  = get_timestamp_in_ms();
+    stream.write_1bytes((version << 6) | payload_type); // v pt
+    stream.write_3bytes(length); // length
+    stream.write_8bytes(client_send_timestamp); // send_timestamp
+    stream.write_8bytes(server_recv_timestamp); // send_timestamp
+    stream.write_8bytes(server_send_timestamp); // recv_timestamp
+    return std::string(stream.data(), stream.pos());
+}
+
+void SrsBandwidthDectorResponsePacket::encode(SrsBandwidthDectorRequestPacket* pkt) 
+{
     version = 0;
     payload_type = SRS_BANDWIDTH_DECTOR_PT_RES;
     length = 24; // fixed. seq(4Byte) + send data length(4Byte) + send timestamp(8Byte) + recv timestamp(8Byte)
     sequence_number = pkt->sequence_number;
     send_data_length = pkt->length;
     send_timestamp = pkt->timestamp;
-    recv_timestamp = (srs_get_system_time() + 500 ) / 1000;
+    recv_timestamp = get_timestamp_in_ms();
 }
 
 std::string SrsBandwidthDectorResponsePacket::to_string() 
@@ -106,6 +186,14 @@ void SrsBandwidthDectorOverUdp::set_stfd(srs_netfd_t fd)
     lfd = fd;
 }
 
+SrsBasicResponse::SrsBasicResponse(/* args */)
+{
+}
+
+SrsBasicResponse::~SrsBasicResponse()
+{
+}
+
 SrsBandwidthDectorRequestPacket::SrsBandwidthDectorRequestPacket() {
 
 }
@@ -115,7 +203,8 @@ SrsBandwidthDectorRequestPacket::~SrsBandwidthDectorRequestPacket() {
 }
 
 // refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
-srs_error_t SrsBandwidthDectorRequestPacket::decode(SrsBuffer* stream) {
+srs_error_t SrsBandwidthDectorRequestPacket::decode(SrsBuffer* stream) 
+{
     srs_error_t err = srs_success;
     
     // at least 16bytes header
@@ -147,19 +236,34 @@ srs_error_t SrsBandwidthDectorRequestPacket::decode(SrsBuffer* stream) {
 srs_error_t SrsBandwidthDectorOverUdp::on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf)
 {
     srs_error_t err = srs_success;
-    char address_string[64];
-    char port_string[16];
 
     // TODO： Hexadecimal print first n bytes
 
     _srs_bd_dector->recv_byte_plus(nb_buf);
     
+    if (buf[0] == 0x01/*SRS_BANDWIDTH_DECTOR_PT_REQ*/) { // is Bandwidth dector request pkt.
+        err = process_bandwidth_dector_request(from, fromlen, buf, nb_buf);
+    } else if (buf[0] == 0x03/*SRS_TIMESYNC_PT_REQ*/) {
+        err = proces_time_sync_request(from, fromlen, buf, nb_buf);
+    }
+    
+    return err;
+}
+
+srs_error_t SrsBandwidthDectorOverUdp::process_bandwidth_dector_request(const sockaddr* from, 
+    const int fromlen, char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+    char address_string[64];
+    char port_string[16];
+    SrsBandwidthDectorRequestPacket pkt;
     if(getnameinfo(from, fromlen, 
                    (char*)&address_string, sizeof(address_string),
                    (char*)&port_string, sizeof(port_string),
                    NI_NUMERICHOST|NI_NUMERICSERV)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
     }
+
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
     if (nb_buf < SRS_BANDWIDTH_DECTOR_MIN_PACKET_SIZE) {
@@ -167,14 +271,22 @@ srs_error_t SrsBandwidthDectorOverUdp::on_udp_packet(const sockaddr* from, const
         return err;
     }
 
-    SrsBuffer* stream = new SrsBuffer(buf, nb_buf);
-    SrsAutoFree(SrsBuffer, stream);
-    if ((err = pkt.decode(stream)) != srs_success) {
+    SrsBuffer stream(buf, nb_buf);
+    if ((err = pkt.decode(&stream)) != srs_success) {
         return srs_error_wrap(err, "pkt decode err");
     }
     
     SrsBandwidthDectorResponsePacket* response_pkt = new SrsBandwidthDectorResponsePacket();
     response_pkt->encode(&pkt);
+#if 0
+    std::string str = response_pkt->to_string();
+    _srs_bd_dector->syscall_plus();
+    int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), from, fromlen, SRS_UTIME_NO_TIMEOUT);
+    if (ret <= 0) {
+        srs_error("bandwidth dector: send_message falid (%d)", ret);
+    }
+    _srs_bd_dector->send_byte_plus((int)str.length());
+#else
     SrsBandWidthDectorSender* sender = _srs_bd_dector->fetch_or_create_sender();
     if (sender == NULL) {
         srs_error("bd dector: failed to fetch sender");
@@ -182,12 +294,65 @@ srs_error_t SrsBandwidthDectorOverUdp::on_udp_packet(const sockaddr* from, const
     }
 
     sender->init(lfd, from, fromlen);
-    sender->insert_queue(response_pkt);
+    sender->insert_queue(static_cast<SrsBasicResponse*>(response_pkt));
     sender->wakeup();
+#endif
     return err;
 }
 
-std::string SrsBandwidthDectorRequestPacket::format_print() {
+srs_error_t SrsBandwidthDectorOverUdp::proces_time_sync_request(const sockaddr* from, 
+    const int fromlen, char* buf, int nb_buf)
+{
+    srs_error_t err = srs_success;
+    char address_string[64];
+    char port_string[16];
+
+    if(getnameinfo(from, fromlen, 
+                   (char*)&address_string, sizeof(address_string),
+                   (char*)&port_string, sizeof(port_string),
+                   NI_NUMERICHOST|NI_NUMERICSERV)) {
+        return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
+    }
+
+    std::string peer_ip = std::string(address_string);
+    int peer_port = atoi(port_string);
+    if (nb_buf < SRS_BANDWIDTH_DECTOR_MIN_PACKET_SIZE) {
+        srs_warn("udp: p2p delay wait %s:%d packet %d bytes", peer_ip.c_str(), peer_port, nb_buf);
+        return err;
+    }
+
+    SrsTimeSyncRequestPacket pkt;
+    SrsBuffer stream(buf, nb_buf);
+    if ((err = pkt.decode(&stream)) != srs_success) {
+        return srs_error_wrap(err, "pkt decode err");
+    }
+
+    SrsTimeSyncResponsePacket* response_pkt = new SrsTimeSyncResponsePacket();
+    response_pkt->encode(&pkt);
+#if 0
+    std::string str = response_pkt->to_string();
+    _srs_bd_dector->syscall_plus();
+    int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), from, fromlen, SRS_UTIME_NO_TIMEOUT);
+    if (ret <= 0) {
+        srs_error("bandwidth dector: send_message falid (%d)", ret);
+    }
+    _srs_bd_dector->send_byte_plus((int)str.length());
+#else
+    SrsBandWidthDectorSender* sender = _srs_bd_dector->fetch_or_create_sender();
+    if (sender == NULL) {
+        srs_error("bd dector: failed to fetch sender");
+        return err;
+    }
+
+    sender->init(lfd, from, fromlen);
+    sender->insert_queue(static_cast<SrsBasicResponse*>(response_pkt));
+    sender->wakeup();
+#endif
+    return err;
+}
+
+std::string SrsBandwidthDectorRequestPacket::format_print() 
+{
     stringstream ss;
     ss << "{"
         << "v=" << std::to_string((int)version) << ","
@@ -199,8 +364,9 @@ std::string SrsBandwidthDectorRequestPacket::format_print() {
     return ss.str();
 }
 
-SrsBandwidthDectorResponsePacket::SrsBandwidthDectorResponsePacket() {
-    
+SrsBandwidthDectorResponsePacket::SrsBandwidthDectorResponsePacket() 
+{
+    set_pkt_type(SRS_BANDWIDTH_DECTOR_PT_RES);
 }
 
 srs_error_t SrsBandWidthDectorSender::do_cycle() 
@@ -221,20 +387,33 @@ srs_error_t SrsBandWidthDectorSender::do_cycle()
                     return err;
                 }
                 
-                srs_info(".............entry wait");
                 waiting(timeout);
-                srs_info(".............leave wait");
                 expired = true;
             }
         }
 
         while (!tasks.empty()) {
-            SrsBandwidthDectorResponsePacket* response = tasks.front();
+            std::string str;
+            SrsBasicResponse* base = tasks.front();
             tasks.pop();
-            SrsAutoFree(SrsBandwidthDectorResponsePacket, response);
-            std::string str = response->to_string();
-    
-            srs_info("bd sender: response:%s", response->format_print().c_str());
+            if (base->get_pkt_type() == SRS_BANDWIDTH_DECTOR_PT_RES) {
+
+                SrsBandwidthDectorResponsePacket* response = static_cast<SrsBandwidthDectorResponsePacket*>(base);
+                
+                SrsAutoFree(SrsBandwidthDectorResponsePacket, response);
+                str = response->to_string();
+        
+            } else if (base->get_pkt_type() == SRS_TIMESYNC_PT_RES) {
+                SrsTimeSyncResponsePacket* response = static_cast<SrsTimeSyncResponsePacket*>(base);
+                SrsAutoFree(SrsTimeSyncResponsePacket, response);
+                str = response->to_string();
+            } else {
+                tasks.pop();
+                srs_error("sender: may memleak! unrecognize pkt type%d", base->get_pkt_type());
+                continue;
+            }
+            srs_info("ts sender: response:%s", base->format_print().c_str());
+
             _srs_bd_dector->syscall_plus();
             int ret = srs_sendto(lfd, (char*)str.c_str(), (int)str.length(), &from, fromlen, SRS_UTIME_NO_TIMEOUT);
             if (ret <= 0) {
@@ -367,9 +546,15 @@ SrsBandWidthDectorSender::~SrsBandWidthDectorSender()
     srs_freep(trd);
     
     while (!tasks.empty()) {
-        SrsBandwidthDectorResponsePacket* pkt = tasks.front();
+        SrsBasicResponse *base = tasks.front();
         tasks.pop();
-        srs_freep(pkt);
+        if (base->get_pkt_type() == SRS_BANDWIDTH_DECTOR_PT_RES) {
+            SrsBandwidthDectorResponsePacket* pkt = static_cast<SrsBandwidthDectorResponsePacket*>(base);
+            srs_freep(pkt);
+        } else if (base->get_pkt_type() == SRS_TIMESYNC_PT_RES) {
+            SrsTimeSyncResponsePacket* pkt = static_cast<SrsTimeSyncResponsePacket*>(base);
+            srs_freep(pkt);
+        }
     }
     
     srs_cond_destroy(wait);
@@ -390,7 +575,7 @@ void SrsBandWidthDectorSender::init(srs_netfd_t lfd_, const sockaddr* from_, int
     fromlen = fromlen_;
 }
 
-void SrsBandWidthDectorSender::insert_queue(SrsBandwidthDectorResponsePacket* response)
+void SrsBandWidthDectorSender::insert_queue(SrsBasicResponse* response)
 {
     tasks.push(response);
 }

@@ -37,6 +37,20 @@ using namespace std;
 #include <unordered_set>
 #include <queue>
 
+class SrsBasicResponse
+{
+private:
+    /* data */
+    int pkt_type;
+public:
+    SrsBasicResponse(/* args */);
+    ~SrsBasicResponse();
+    void set_pkt_type(int t) { pkt_type = t; }
+    int get_pkt_type() { return pkt_type; }
+    virtual std::string to_string() = 0;
+    virtual std::string format_print() = 0;
+};
+
 // refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
 class SrsBandwidthDectorRequestPacket {
 public:
@@ -56,7 +70,8 @@ public:
 };
 
 // refs: https://rongcloud.yuque.com/iyw4vm/tgzi1r/epbdl3#zn6hj
-class SrsBandwidthDectorResponsePacket {
+class SrsBandwidthDectorResponsePacket : public SrsBasicResponse
+{
 private:
     int8_t version; // 2bit fixed 00
     int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
@@ -73,12 +88,46 @@ public:
     virtual std::string format_print();
 };
 
+class SrsTimeSyncRequestPacket
+{
+private:
+    /* data */
+    int8_t version; // 2bit fixed 00
+    int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
+    uint32_t length; // 24bit 
+    uint64_t client_send_timestamp; // 64bit
+public:
+    SrsTimeSyncRequestPacket(/* args */) {}
+    ~SrsTimeSyncRequestPacket() {}
+    virtual std::string to_string();
+    uint64_t get_client_send_timestamp() { return client_send_timestamp; }
+    virtual srs_error_t decode(SrsBuffer* stream);
+};
+
+class SrsTimeSyncResponsePacket : public SrsBasicResponse
+{
+private:
+    /* data */
+    int8_t version; // 2bit fixed 00
+    int8_t payload_type; // 6bit 1: request pkt, 2: response pkt
+    uint32_t length; // 24bit 
+    uint64_t client_send_timestamp; // 64bit
+    uint64_t server_recv_timestamp; // 64bit
+    uint64_t server_send_timestamp; // 64bit
+public:
+    SrsTimeSyncResponsePacket();
+    ~SrsTimeSyncResponsePacket() {}
+    virtual void encode(SrsTimeSyncRequestPacket* pkt);
+    virtual std::string to_string();
+    virtual std::string format_print() { return ""; }
+};
+
+
 // The bandwidth dector over udp stream caster.
 class SrsBandwidthDectorOverUdp : public ISrsUdpHandler
 {
 private:
     std::string output;
-    SrsBandwidthDectorRequestPacket pkt;
     srs_netfd_t lfd;
     SrsPithyPrint* pprint;
 public:
@@ -88,6 +137,10 @@ public:
 
 public:
     virtual srs_error_t on_udp_packet(const sockaddr* from, const int fromlen, char* buf, int nb_buf);
+    virtual srs_error_t process_bandwidth_dector_request(const sockaddr* from, const int fromlen, 
+                                                        char* buf, int nb_buf);
+    virtual srs_error_t proces_time_sync_request(const sockaddr* from, const int fromlen, 
+                                                        char* buf, int nb_buf);
 };
 
 class SrsGb28181Config
@@ -100,7 +153,6 @@ public:
     ~SrsGb28181Config();
 };
 
-
 class SrsBandWidthDectorSender : public ISrsCoroutineHandler, public ISrsConnection
 {
 private:
@@ -108,7 +160,7 @@ private:
     srs_netfd_t lfd;
     sockaddr from;
     int fromlen;
-    std::queue<SrsBandwidthDectorResponsePacket*> tasks;
+    std::queue<SrsBasicResponse*> tasks;
     srs_cond_t wait;
     srs_mutex_t lock;
     bool mw_waiting;
@@ -118,7 +170,7 @@ private:
 public:
     SrsBandWidthDectorSender(SrsGb28181Config *config);
     ~SrsBandWidthDectorSender();
-    virtual void insert_queue(SrsBandwidthDectorResponsePacket* response);
+    virtual void insert_queue(SrsBasicResponse* response);
     virtual void wakeup();
     virtual srs_error_t start();
     virtual void init(srs_netfd_t lfd_, const sockaddr* from_, int fromlen_);
