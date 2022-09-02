@@ -44,7 +44,17 @@ using namespace std;
 
 static uint64_t get_timestamp_in_ms() 
 {
-    return (srs_get_system_time() + 500 ) / 1000;
+    timeval now;
+    
+    if (gettimeofday(&now, NULL) < 0) {
+        srs_warn("gettimeofday failed, ignore");
+        return (srs_get_system_time() + 500 ) / 1000;
+    }
+    
+    // we must convert the tv_sec/tv_usec to int64_t.
+    int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
+    return (now_us + 500) / 1000;
+    // return (srs_get_system_time() + 500 ) / 1000;
 }
 
 SrsBandwidthDectorResponsePacket::~SrsBandwidthDectorResponsePacket() 
