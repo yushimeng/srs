@@ -57,6 +57,20 @@ static uint64_t get_timestamp_in_ms()
     // return (srs_get_system_time() + 500 ) / 1000;
 }
 
+static uint64_t get_timestamp_in_us() 
+{
+    timeval now;
+    
+    if (gettimeofday(&now, NULL) < 0) {
+        srs_warn("gettimeofday failed, ignore");
+        return srs_get_system_time();
+    }
+    
+    // we must convert the tv_sec/tv_usec to int64_t.
+    int64_t now_us = ((int64_t)now.tv_sec) * 1000 * 1000 + (int64_t)now.tv_usec;
+    return now_us;
+}
+
 SrsBandwidthDectorResponsePacket::~SrsBandwidthDectorResponsePacket() 
 {
 
@@ -273,6 +287,7 @@ srs_error_t SrsBandwidthDectorOverUdp::process_bandwidth_dector_request(const so
                    NI_NUMERICHOST|NI_NUMERICSERV)) {
         return srs_error_new(ERROR_SYSTEM_IP_INVALID, "bad address");
     }
+    uint64_t recv_time = get_timestamp_in_us();
 
     std::string peer_ip = std::string(address_string);
     int peer_port = atoi(port_string);
@@ -307,6 +322,9 @@ srs_error_t SrsBandwidthDectorOverUdp::process_bandwidth_dector_request(const so
     sender->insert_queue(static_cast<SrsBasicResponse*>(response_pkt));
     sender->wakeup();
 #endif
+    uint64_t now_time = get_timestamp_in_us();
+    srs_trace("recv pkt, seq=%u, recv time=%llu, send done time=%llu, process time=%llu", 
+        pkt.sequence_number, recv_time, now_time, now_time - recv_time);
     return err;
 }
 
